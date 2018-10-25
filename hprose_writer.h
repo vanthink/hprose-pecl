@@ -374,6 +374,9 @@ static zend_always_inline void _hprose_writer_write_datetime_with_ref(hprose_wri
 #define hprose_writer_write_datetime_with_ref(_this, val) _hprose_writer_write_datetime_with_ref((_this)->refer, (_this)->stream, (val) TSRMLS_CC)
 
 static void _hprose_writer_write_array(hprose_writer *_this, hprose_writer_refer *refer, hprose_bytes_io *stream, zval *val TSRMLS_DC) {
+#if PHP_MAJOR_VERSION >= 7
+    SEPARATE_ZVAL_NOREF(val);
+#endif
     HashTable *ht = Z_ARRVAL_P(val);
     int32_t i = zend_hash_num_elements(ht);
     if (refer) {
