@@ -375,13 +375,20 @@ static zend_always_inline void _hprose_writer_write_datetime_with_ref(hprose_wri
 
 static void _hprose_writer_write_array(hprose_writer *_this, hprose_writer_refer *refer, hprose_bytes_io *stream, zval *val TSRMLS_DC) {
 #if PHP_MAJOR_VERSION >= 7
-    SEPARATE_ZVAL_NOREF(val);
-#endif
+    zval tmp_val;
+    ZVAL_DUP(&tmp_val, val);
+    HashTable *ht = Z_ARRVAL(tmp_val);
+    int32_t i = zend_hash_num_elements(ht);
+    if (refer) {
+        hprose_writer_refer_set(refer, &tmp_val);
+    }
+#else
     HashTable *ht = Z_ARRVAL_P(val);
     int32_t i = zend_hash_num_elements(ht);
     if (refer) {
         hprose_writer_refer_set(refer, val);
     }
+#endif
     hprose_bytes_io_putc(stream, HPROSE_TAG_LIST);
     if (i) {
         hprose_bytes_io_write_int(stream, i);
