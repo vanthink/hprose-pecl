@@ -409,6 +409,9 @@ static void _hprose_writer_write_array(hprose_writer *_this, hprose_writer_refer
         }
     }
     hprose_bytes_io_putc(stream, HPROSE_TAG_CLOSEBRACE);
+#if PHP_MAJOR_VERSION >= 7
+    zval_dtor(&tmp_val);
+#endif
 }
 
 #define hprose_writer_write_array(_this, val) _hprose_writer_write_array((_this), (_this)->refer, (_this)->stream, (val) TSRMLS_CC)
