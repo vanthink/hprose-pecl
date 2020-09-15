@@ -678,7 +678,7 @@ static int32_t _hprose_writer_write_class(hprose_writer *_this, hprose_writer_re
 }
 
 static void _hprose_writer_write_object(hprose_writer *_this, hprose_writer_refer *refer, hprose_bytes_io *stream, zval *val TSRMLS_DC) {
-    HashTable *ht = Z_OBJPROP_P(val), *props_ht;
+    HashTable *ht = Z_OBJPROP_P(val), *props_ht, tmp_props_ht;
     zval *props;
     long index;
     int32_t i;
@@ -710,20 +710,23 @@ static void _hprose_writer_write_object(hprose_writer *_this, hprose_writer_refe
     hprose_bytes_io_write_int(stream, index);
     hprose_bytes_io_putc(stream, HPROSE_TAG_OPENBRACE);
     if (i) {
-        zend_hash_internal_pointer_reset(props_ht);
+        zend_hash_init(&tmp_props_ht, props_ht->nTableSize, NULL, NULL, 1);
+        zend_hash_copy(&tmp_props_ht, props_ht, NULL);
+        zend_hash_internal_pointer_reset(&tmp_props_ht);
         for (; i > 0; --i) {
 #if PHP_MAJOR_VERSION < 7
             zval **e, *value;
-            zend_hash_get_current_data(props_ht, (void **)&e);
+            zend_hash_get_current_data(&tmp_props_ht, (void **)&e);
             value = zend_hash_str_find_ptr(ht, Z_STRVAL_PP(e), Z_STRLEN_PP(e));
             _hprose_writer_serialize(_this, refer, stream, value TSRMLS_CC);
 #else
-            zval *e = zend_hash_get_current_data(props_ht);
+            zval *e = zend_hash_get_current_data(&tmp_props_ht);
             zval *value = zend_hash_str_find_ptr(ht, Z_STRVAL_P(e), Z_STRLEN_P(e));
             _hprose_writer_serialize(_this, refer, stream, value TSRMLS_CC);
 #endif
-            zend_hash_move_forward(props_ht);
+            zend_hash_move_forward(&tmp_props_ht);
         }
+        zend_hash_destroy(&tmp_props_ht);
     }
     hprose_bytes_io_putc(stream, HPROSE_TAG_CLOSEBRACE);
 }
