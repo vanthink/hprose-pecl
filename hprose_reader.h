@@ -651,7 +651,7 @@ static zend_always_inline void hprose_reader_read_object_without_tag(hprose_read
     int32_t index = hprose_bytes_io_read_int(_this->stream, HPROSE_TAG_OPENBRACE);
     zval *class_name = php_array_get(_this->classref, index);
     zval *props = php_array_get(_this->propsref, index);
-    HashTable *props_ht = Z_ARRVAL_P(props);
+    HashTable *props_ht = Z_ARRVAL_P(props), tmp_props_ht;
     int32_t i = zend_hash_num_elements(props_ht);
     zend_class_entry *scope = __create_php_object(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name), return_value TSRMLS_CC, "");
     hprose_reader_refer_set(_this->refer, return_value);
@@ -664,7 +664,9 @@ static zend_always_inline void hprose_reader_read_object_without_tag(hprose_read
 	EG(fake_scope) = scope;
 #endif
 
-        zend_hash_internal_pointer_reset(props_ht);
+        zend_hash_init(&tmp_props_ht, props_ht->nTableSize, NULL, NULL, 1);
+        zend_hash_copy(&tmp_props_ht, props_ht, NULL);
+        zend_hash_internal_pointer_reset(&tmp_props_ht);
 
 	if (!Z_OBJ_HT_P(return_value)->write_property) {
             zend_error(E_CORE_ERROR, "Properties of class %s cannot be updated", Z_STRVAL_P(class_name));
@@ -674,7 +676,7 @@ static zend_always_inline void hprose_reader_read_object_without_tag(hprose_read
             char *name;
 #if PHP_MAJOR_VERSION < 7
             zval **e, *val;
-            zend_hash_get_current_data(props_ht, (void **)&e);
+            zend_hash_get_current_data(&tmp_props_ht, (void **)&e);
             MAKE_STD_ZVAL(val);
             hprose_reader_unserialize(_this, val TSRMLS_CC);
             name = Z_STRVAL_PP(e);
@@ -696,7 +698,7 @@ static zend_always_inline void hprose_reader_read_object_without_tag(hprose_read
 #endif
             }
 #else
-            zval *e = zend_hash_get_current_data(props_ht), val, prop;
+            zval *e = zend_hash_get_current_data(&tmp_props_ht), val, prop;
             hprose_reader_unserialize(_this, &val TSRMLS_CC);
             name = Z_STRVAL_P(e);
             name[0] = name[0] - 32;
@@ -711,8 +713,9 @@ static zend_always_inline void hprose_reader_read_object_without_tag(hprose_read
             zval_ptr_dtor(&prop);
 #endif
             zval_ptr_dtor(&val);
-            zend_hash_move_forward(props_ht);
+            zend_hash_move_forward(&tmp_props_ht);
         }
+    zend_hash_destroy(&tmp_props_ht);
 #if PHP_VERSION_ID < 70100
 	EG(scope) = old_scope;
 #else
